@@ -1,0 +1,61 @@
+#! /bin/sh
+
+set -e
+
+# Keep cd from picking a same-named directory out of CDPATH.
+# Assigned first, as some shells fail to unset an unset variable.
+CDPATH=
+unset CDPATH
+
+# Keep git from being pointed at another repository, as happens in hooks.
+# They are assigned first for the same reason as CDPATH.
+GIT_DIR= GIT_WORK_TREE= GIT_COMMON_DIR= GIT_INDEX_FILE= GIT_OBJECT_DIRECTORY=
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY
+
+srcdir="$(dirname "$0")"
+test -z "$srcdir" && srcdir=.
+
+cd "$srcdir"
+
+clone_repo_commit() {
+    if test -d "$2/.git"; then
+        ( cd "$2" && git reset --hard )
+        ( cd "$2" && git clean -f -d )
+        if ! ( cd "$2" && git checkout -q $3 ); then
+            rm -rf "$2"
+        fi
+    else
+        if test -d "$2"; then
+            echo "error: '$2' is not a Git repository" 1>&2
+            exit 1
+        fi
+    fi
+    if ! test -d "$2"; then
+        git clone $1 "$2"
+        if ! ( cd "$2" && git checkout -q $3 ); then
+            rm -rf "$2"
+            exit 1
+        fi
+    fi
+}
+
+rm -f .deps-obtained
+
+clone_repo_commit \
+    https://github.com/osdev0/freestanding-c-hdrs.git \
+    freestanding-c-hdrs \
+    59d91c6ed2f97f7de619e2c85a376aea0304d207
+
+clone_repo_commit \
+    https://github.com/osdev0/freestanding-lgrt.git \
+    freestanding-lgrt \
+    3cb84d19dd20c54ec2d1d2f9b2ba635ce97bf749
+
+clone_repo_commit \
+    https://github.com/Limine-Bootloader/limine-protocol.git \
+    limine-protocol \
+    6e85ddd6f928b5b512015c4d47d1cfce2fd28079
+
+touch .deps-obtained
+
+printf "\nDependencies obtained successfully.\n"

@@ -1,0 +1,8 @@
+/compile_commands.json
+/.cache
+/.deps-obtained
+/freestanding-c-hdrs
+/freestanding-lgrt
+/limine-protocol
+/bin-*
+/obj-*
