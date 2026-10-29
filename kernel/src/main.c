@@ -1,7 +1,8 @@
 
-#include "graphics.h"
-#include "interrupts.h"
-#include "pmm.h"
+#include "drivers/video/graphics.h"
+#include "arch/x86_64/interrupts.h"
+#include "memory/pmm.h"
+#include "arch/x86_64/paging.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -286,11 +287,65 @@ void kmain(void) {
                    0, 255, 130);
 
     // --------------------------------------------------------
-    // 9. Done
+    // 9. PMM Test Complete
     // --------------------------------------------------------
 
     graphics_print("\nTRUSTOS PMM V0.5.1 READY!\n",
                    0, 255, 130);
+
+    // --------------------------------------------------------
+    // 10. Paging Test (v0.6)
+    // --------------------------------------------------------
+
+    graphics_clear(10, 15, 25);
+
+    graphics_print("TRUSTOS V0.6 - PAGING\n\n",
+                   0, 255, 130);
+
+    uint64_t cr3 = paging_get_cr3();
+    uint64_t pml4 = paging_get_pml4_address();
+
+    graphics_print("[OK] PAGING INFORMATION READ\n\n",
+                   0, 255, 130);
+
+    graphics_print("CR3: ", 255, 255, 255);
+    print_uint64(cr3);
+
+    graphics_print("\nPML4 PHYSICAL ADDRESS: ",
+                   255, 255, 255);
+    print_uint64(pml4);
+
+    // --------------------------------------------------------
+    // 11. Inspect PML4 Entries
+    // --------------------------------------------------------
+
+    // Convert the physical PML4 address to a virtual address
+    // using the Higher Half Direct Map.
+
+    volatile uint64_t *pml4_table =
+        (volatile uint64_t *)(uintptr_t)(pml4 + hhdm);
+
+    uint64_t present_entries = 0;
+
+    // A PML4 contains 512 entries.
+    // Bit 0 indicates whether an entry is present.
+
+    for (uint64_t i = 0; i < 512; i++) {
+        if (pml4_table[i] & 1ULL) {
+            present_entries++;
+        }
+    }
+
+    graphics_print("\n\nPRESENT PML4 ENTRIES: ",
+                   255, 255, 255);
+    print_uint64(present_entries);
+
+    graphics_print("\n[OK] PML4 INSPECTION COMPLETE\n",
+                   0, 255, 130);
+
+    // --------------------------------------------------------
+    // 12. Halt CPU
+    // --------------------------------------------------------
 
     hcf();
 }

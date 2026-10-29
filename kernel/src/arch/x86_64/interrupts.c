@@ -1,6 +1,6 @@
 
 #include "interrupts.h"
-#include "graphics.h"
+#include "../../drivers/video/graphics.h"
 
 #include <stdint.h>
 #include <stddef.h>
