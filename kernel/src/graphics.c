@@ -1,5 +1,6 @@
 
 #include "graphics.h"
+
 #include <stddef.h>
 
 static struct limine_framebuffer *screen;

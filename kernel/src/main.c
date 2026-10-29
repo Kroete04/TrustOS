@@ -1,10 +1,12 @@
+
+#include "graphics.h"
+#include "interrupts.h"
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <limine.h>
 
-#include "graphics.h"
-#include "interrupts.h"
 
 __attribute__((used, section(".limine_requests")))
 static volatile uint64_t limine_base_revision[] = LIMINE_BASE_REVISION(6);
@@ -34,6 +36,7 @@ static void hcf(void) {
 }
 
 
+
 void kmain(void) {
     if (!LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision)) {
         hcf();
@@ -55,23 +58,24 @@ void kmain(void) {
     graphics_init(fb);
     graphics_clear(10, 15, 25);
 
-    graphics_print("TRUSTOS V0.3\n", 0, 255, 130);
+    graphics_print("TRUSTOS V0.4\n", 0, 255, 130);
     graphics_print("DON'T VERIFY. JUST TRUST.\n\n", 180, 180, 180);
     graphics_print("[OK] KERNEL INITIALIZED\n", 0, 255, 130);
     graphics_print("[OK] FRAMEBUFFER INITIALIZED\n", 0, 255, 130);
     graphics_print("[OK] SUPPORTING GERKMANN <3>\n", 0, 255, 130);
     graphics_print("[OK] SCAMMING USERS LMAO :D>\n", 0, 255, 130);
     graphics_print("[OK] MEETING AT ARCI-STREET>\n", 0, 255, 130);
+
     interrupts_init();
-    graphics_print("[OK] IDT LOADED\n", 0, 255, 130);
-    graphics_print("[OK] INTERRUPT HANDLER READY\n", 0, 255, 130);
-    graphics_print("\nTRIGGERING BREAKPOINT...\n", 255, 180, 60);
 
-    __asm__ volatile("int3");
+    graphics_print("[OK] EXCEPTION HANDLERS READY\n", 0, 255, 130);
+    graphics_print("\nTRIGGERING INVALID OPCODE...\n", 255, 180, 60);
 
-    graphics_print("ERROR: HANDLER RETURNED!\n", 255, 60, 60);
+    // x86-64: test
+    __asm__ volatile("ud2");
+
+    // Should never happen (Hopefully lmao)
+    graphics_print("ERROR: EXCEPTION RETURNED!\n", 255, 60, 60);
 
     hcf();
 }
-
-
