@@ -2,6 +2,7 @@
 #include "drivers/video/graphics.h"
 #include "arch/x86_64/interrupts.h"
 #include "memory/pmm.h"
+#include "memory/vmm.h"
 #include "arch/x86_64/paging.h"
 
 #include <stdint.h>
@@ -320,15 +321,15 @@ void kmain(void) {
     // --------------------------------------------------------
 
     // Convert the physical PML4 address to a virtual address
-    // using the Higher Half Direct Map.
+    // using the Higher Half Direct Map
 
     volatile uint64_t *pml4_table =
         (volatile uint64_t *)(uintptr_t)(pml4 + hhdm);
 
     uint64_t present_entries = 0;
 
-    // A PML4 contains 512 entries.
-    // Bit 0 indicates whether an entry is present.
+    // A PML4 contains 512 entries
+    // Bit 0 indicates whether an entry is present
 
     for (uint64_t i = 0; i < 512; i++) {
         if (pml4_table[i] & 1ULL) {
@@ -342,10 +343,86 @@ void kmain(void) {
 
     graphics_print("\n[OK] PML4 INSPECTION COMPLETE\n",
                    0, 255, 130);
+    
+    // --------------------------------------------------------
+    // 12. VMM Test
+    // --------------------------------------------------------
 
-    // --------------------------------------------------------
-    // 12. Halt CPU
-    // --------------------------------------------------------
+    graphics_clear(10, 15, 25);
+
+    graphics_print("TRUSTOS V0.6 - VMM TEST\n\n",
+                   0, 255, 130);
+
+    if (!vmm_init(hhdm)) {
+        graphics_print("[ERROR] VMM INIT FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] VMM INITIALIZED\n",
+                   0, 255, 130);
+
+    uint64_t test_physical = pmm_alloc_page();
+
+    if (test_physical == 0) {
+        graphics_print("[ERROR] PMM ALLOCATION FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    // Test address: must not overlap existing mappings
+    const uint64_t test_virtual = 0x0000400000000000ULL;
+
+    if (!vmm_map_page(
+        test_virtual,
+        test_physical,
+        VMM_WRITABLE | VMM_NX
+    )) {
+        graphics_print("[ERROR] VMM MAPPING FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] VIRTUAL PAGE MAPPED\n",
+                   0, 255, 130);
+
+    volatile uint64_t *virtual_memory =
+        (volatile uint64_t *)(uintptr_t)test_virtual;
+
+    volatile uint64_t *physical_memory =
+        (volatile uint64_t *)(uintptr_t)(
+            test_physical + hhdm
+        );
+
+    *virtual_memory = 0xCAFEBABE12345678ULL;
+
+    if (*physical_memory != 0xCAFEBABE12345678ULL) {
+        graphics_print("[ERROR] VMM MEMORY TEST FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] VIRTUAL MEMORY READ/WRITE\n",
+                   0, 255, 130);
+
+    if (!vmm_unmap_page(test_virtual)) {
+        graphics_print("[ERROR] VMM UNMAP FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    if (!pmm_free_page(test_physical)) {
+        graphics_print("[ERROR] PMM FREE FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] VIRTUAL PAGE UNMAPPED\n",
+                   0, 255, 130);
+
+    graphics_print("\nTRUSTOS VMM TEST COMPLETE!\n",
+                   0, 255, 130);
 
     hcf();
+
 }
