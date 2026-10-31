@@ -10,17 +10,17 @@
 #define VMM_USER     (1ULL << 2)
 #define VMM_NX       (1ULL << 63)
 
-// Initialize VMM using Limine's HHDM offset
 bool vmm_init(uint64_t hhdm_offset);
 
-// Map one 4 KiB physical page to a virtual address
 bool vmm_map_page(
     uint64_t virtual_address,
     uint64_t physical_address,
     uint64_t flags
 );
 
-// Remove a mapping without freeing its physical page
 bool vmm_unmap_page(uint64_t virtual_address);
+
+// Returns the reserved virtual test address.
+uint64_t vmm_get_test_address(void);
 
 #endif

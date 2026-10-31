@@ -370,8 +370,7 @@ void kmain(void) {
         hcf();
     }
 
-    // Test address: must not overlap existing mappings
-    const uint64_t test_virtual = 0x0000400000000000ULL;
+    const uint64_t test_virtual = vmm_get_test_address();
 
     if (!vmm_map_page(
         test_virtual,
