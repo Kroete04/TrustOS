@@ -570,33 +570,94 @@ void kmain(void) {
     graphics_print("\nTRUSTOS HEAP V0.7.1 READY!\n",
                    0, 255, 130);
 
-
     
     // --------------------------------------------------------
-    // 15. Keyboard Polling Test
+    // 15. Keyboard Test - German Layout (v0.8.1)
     // --------------------------------------------------------
+
+    char input_buffer[256] = {0};
+    size_t input_length = 0;
 
     graphics_clear(10, 15, 25);
 
-    graphics_print("TRUSTOS V0.8 - KEYBOARD\n\n",
+    graphics_print("TRUSTOS V0.8.1 - KEYBOARD\n\n",
                    0, 255, 130);
 
-    graphics_print("[OK] KEYBOARD POLLING READY\n",
+    graphics_print("[OK] GERMAN KEYBOARD READY\n",
+                   0, 255, 130);
+
+    graphics_print("[OK] SHIFT / CAPS LOCK READY\n",
+                   0, 255, 130);
+
+    graphics_print("[OK] BACKSPACE READY\n",
                    0, 255, 130);
 
     graphics_print("\nTYPE SOMETHING:\n\n",
                    255, 255, 255);
 
     while (true) {
-        char character;
+        keyboard_event_t event;
 
-        if (keyboard_poll_char(&character)) {
-            char output[2] = {
-                character,
-                '\0'
-            };
+        if (keyboard_poll_event(&event)) {
+            bool redraw = false;
 
-            graphics_print(output, 0, 255, 130);
+            if (event.type == KEYBOARD_EVENT_CHAR) {
+                if (input_length < sizeof(input_buffer) - 1) {
+                    input_buffer[input_length++] =
+                        event.character;
+
+                    input_buffer[input_length] = '\0';
+                    redraw = true;
+                }
+            } else if (
+                event.type == KEYBOARD_EVENT_BACKSPACE
+            ) {
+                if (input_length > 0) {
+                    input_length--;
+                    input_buffer[input_length] = '\0';
+                    redraw = true;
+                }
+            } else if (
+                event.type == KEYBOARD_EVENT_ENTER
+            ) {
+                input_length = 0;
+                input_buffer[0] = '\0';
+                redraw = true;
+            }
+
+            if (redraw) {
+                graphics_clear(10, 15, 25);
+
+                graphics_print(
+                    "TRUSTOS V0.8.1 - KEYBOARD\n\n",
+                    0, 255, 130
+                );
+
+                graphics_print(
+                    "[OK] GERMAN KEYBOARD READY\n",
+                    0, 255, 130
+                );
+
+                graphics_print(
+                    "[OK] SHIFT / CAPS LOCK READY\n",
+                    0, 255, 130
+                );
+
+                graphics_print(
+                    "[OK] BACKSPACE READY\n",
+                    0, 255, 130
+                );
+
+                graphics_print(
+                    "\nTYPE SOMETHING:\n\n",
+                    255, 255, 255
+                );
+
+                graphics_print(
+                    input_buffer,
+                    0, 255, 130
+                );
+            }
         }
 
         __asm__ volatile("pause");
