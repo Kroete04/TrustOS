@@ -11,19 +11,16 @@ ARCH := x86_64
 QEMUFLAGS := -m 2G
 
 # Per-architecture user controllable QEMU flags.
+
 ifeq ($(ARCH),x86_64)
     QEMU_MACHINE := -M q35
-    # Uncomment this line and comment out/remove the xHCI/USB keyboard/mouse
-    # block below if the kernel does not support xHCI/USB and wants legacy
-    # PS/2 keyboard and mouse instead.
-    #QEMU_DEVICES :=
-    QEMU_DEVICES := \
-        -device qemu-xhci \
-        -device usb-kbd \
-        -device usb-mouse
+    # Use legacy PS/2 keyboard and mouse.
+    # No xHCI/USB devices required.
+    QEMU_DEVICES :=
     QEMU_CPU :=
 else
     QEMU_MACHINE := -M virt
+
     ifeq ($(ARCH),aarch64)
         QEMU_CPU := -cpu cortex-a72
     endif

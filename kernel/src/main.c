@@ -1,5 +1,6 @@
 
 #include "drivers/video/graphics.h"
+#include "drivers/input/keyboard.h"
 #include "arch/x86_64/interrupts.h"
 #include "arch/x86_64/paging.h"
 #include "memory/pmm.h"
@@ -570,6 +571,34 @@ void kmain(void) {
                    0, 255, 130);
 
 
-    hcf();
+    
+    // --------------------------------------------------------
+    // 15. Keyboard Polling Test
+    // --------------------------------------------------------
 
+    graphics_clear(10, 15, 25);
+
+    graphics_print("TRUSTOS V0.8 - KEYBOARD\n\n",
+                   0, 255, 130);
+
+    graphics_print("[OK] KEYBOARD POLLING READY\n",
+                   0, 255, 130);
+
+    graphics_print("\nTYPE SOMETHING:\n\n",
+                   255, 255, 255);
+
+    while (true) {
+        char character;
+
+        if (keyboard_poll_char(&character)) {
+            char output[2] = {
+                character,
+                '\0'
+            };
+
+            graphics_print(output, 0, 255, 130);
+        }
+
+        __asm__ volatile("pause");
+    }
 }
