@@ -1,9 +1,10 @@
 
 #include "drivers/video/graphics.h"
 #include "arch/x86_64/interrupts.h"
+#include "arch/x86_64/paging.h"
 #include "memory/pmm.h"
 #include "memory/vmm.h"
-#include "arch/x86_64/paging.h"
+#include "memory/heap.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -421,6 +422,153 @@ void kmain(void) {
 
     graphics_print("\nTRUSTOS VMM TEST COMPLETE!\n",
                    0, 255, 130);
+
+    
+    // --------------------------------------------------------
+    // 13. Kernel Heap Test
+    // --------------------------------------------------------
+
+    graphics_clear(10, 15, 25);
+
+    graphics_print("TRUSTOS V0.7 - KERNEL HEAP\n\n",
+                   0, 255, 130);
+
+    if (!heap_init()) {
+        graphics_print("[ERROR] HEAP INIT FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] KERNEL HEAP INITIALIZED\n",
+                   0, 255, 130);
+
+    uint64_t *number = kmalloc(sizeof(uint64_t));
+    char *buffer = kmalloc(128);
+    uint32_t *array = kmalloc(32 * sizeof(uint32_t));
+
+    if (number == NULL ||
+        buffer == NULL ||
+        array == NULL) {
+        graphics_print("[ERROR] KMALLOC FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] MULTIPLE ALLOCATIONS\n",
+                   0, 255, 130);
+
+    *number = 0x123456789ABCDEF0ULL;
+
+    for (size_t i = 0; i < 128; i++) {
+        buffer[i] = 'A';
+    }
+
+    for (size_t i = 0; i < 32; i++) {
+        array[i] = (uint32_t)(i * 10);
+    }
+
+    if (*number != 0x123456789ABCDEF0ULL ||
+        buffer[127] != 'A' ||
+        array[31] != 310) {
+        graphics_print("[ERROR] HEAP MEMORY TEST FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] HEAP MEMORY READ/WRITE\n",
+                   0, 255, 130);
+
+    kfree(number);
+    kfree(buffer);
+    kfree(array);
+
+    graphics_print("[OK] KFREE COMPLETED\n",
+                   0, 255, 130);
+
+    void *reused = kmalloc(64);
+
+    if (reused == NULL) {
+        graphics_print("[ERROR] HEAP REUSE FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] FREED MEMORY REUSED\n",
+                   0, 255, 130);
+
+    kfree(reused);
+
+    graphics_print("\nTRUSTOS HEAP V0.7 READY!\n",
+                   0, 255, 130);
+
+
+    // --------------------------------------------------------
+    // 14. Heap Safety Tests
+    // --------------------------------------------------------
+
+    graphics_print("\nHEAP SAFETY TESTS\n",
+                   0, 255, 130);
+
+    // Test 1: Verify actual memory reuse.
+    void *first = kmalloc(256);
+
+    if (first == NULL) {
+        graphics_print("[ERROR] HEAP ALLOCATION FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    kfree(first);
+
+    void *second = kmalloc(256);
+
+    if (second != first) {
+        graphics_print("[ERROR] MEMORY NOT REUSED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] MEMORY ADDRESS REUSED\n",
+                   0, 255, 130);
+
+    // Test 2: Double-free should not corrupt the heap.
+    kfree(second);
+    kfree(second);
+
+    void *third = kmalloc(128);
+
+    if (third == NULL) {
+        graphics_print("[ERROR] DOUBLE-FREE TEST FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] DOUBLE-FREE HANDLED\n",
+                   0, 255, 130);
+
+    kfree(third);
+
+    // Test 3: Invalid pointer should be ignored.
+    uint64_t invalid_value = 1234;
+
+    kfree(&invalid_value);
+
+    void *fourth = kmalloc(64);
+
+    if (fourth == NULL) {
+        graphics_print("[ERROR] INVALID POINTER TEST FAILED\n",
+                       255, 60, 60);
+        hcf();
+    }
+
+    graphics_print("[OK] INVALID POINTER HANDLED\n",
+                   0, 255, 130);
+
+    kfree(fourth);
+
+    graphics_print("\nTRUSTOS HEAP V0.7.1 READY!\n",
+                   0, 255, 130);
+
 
     hcf();
 
