@@ -58,6 +58,35 @@ static const uint8_t *glyph(char ch) {
         {31,1,2,4,8,16,31}     // Z
     };
 
+    static const uint8_t lowercase[26][7] = {
+        {0, 0, 14, 1, 15, 17, 15},  // a
+        {16, 16, 30, 17, 17, 17, 30}, // b
+        {0, 0, 14, 17, 16, 17, 14}, // c
+        {1, 1, 15, 17, 17, 17, 15}, // d
+        {0, 0, 14, 17, 31, 16, 14}, // e
+        {6, 9, 8, 28, 8, 8, 8},     // f
+        {0, 15, 17, 17, 15, 1, 14}, // g
+        {16, 16, 30, 17, 17, 17, 17}, // h
+        {4, 0, 12, 4, 4, 4, 14},    // i
+        {2, 0, 6, 2, 2, 18, 12},    // j
+        {16, 16, 18, 20, 24, 20, 18}, // k
+        {12, 4, 4, 4, 4, 4, 14},    // l
+        {0, 0, 26, 21, 21, 21, 21}, // m
+        {0, 0, 30, 17, 17, 17, 17}, // n
+        {0, 0, 14, 17, 17, 17, 14}, // o
+        {0, 30, 17, 17, 30, 16, 16}, // p
+        {0, 15, 17, 17, 15, 1, 1}, // q
+        {0, 0, 22, 25, 16, 16, 16}, // r
+        {0, 0, 15, 16, 14, 1, 30}, // s
+        {8, 8, 28, 8, 8, 9, 6},    // t
+        {0, 0, 17, 17, 17, 19, 13}, // u
+        {0, 0, 17, 17, 17, 10, 4}, // v
+        {0, 0, 17, 17, 21, 21, 10}, // w
+        {0, 0, 17, 10, 4, 10, 17}, // x
+        {0, 17, 17, 17, 15, 1, 14}, // y
+        {0, 0, 31, 2, 4, 8, 31}    // z
+    };
+
     static const uint8_t digits[10][7] = {
         {14,17,19,21,25,17,14},
         {4,12,4,4,4,4,14},
@@ -72,25 +101,90 @@ static const uint8_t *glyph(char ch) {
     };
 
     static const uint8_t space[7] = {0};
-    static const uint8_t dot[7]   = {0,0,0,0,0,12,12};
-    static const uint8_t colon[7] = {0,12,12,0,12,12,0};
-    static const uint8_t dash[7]  = {0,0,0,31,0,0,0};
-    static const uint8_t bang[7]  = {4,4,4,4,4,0,4};
-    static const uint8_t quote[7] = {10,10,0,0,0,0,0};
-    static const uint8_t question[7] = {14,17,1,2,4,0,4};
+    static const uint8_t dot[7]        = {0, 0, 0, 0, 0, 12, 12};
+    static const uint8_t comma[7]      = {0, 0, 0, 0, 12, 12, 8};
+    static const uint8_t colon[7]      = {0, 12, 12, 0, 12, 12, 0};
+    static const uint8_t semicolon[7]  = {0, 12, 12, 0, 12, 12, 8};
+    static const uint8_t dash[7]       = {0, 0, 0, 31, 0, 0, 0};
+    static const uint8_t underscore[7] = {0, 0, 0, 0, 0, 0, 31};
+    static const uint8_t bang[7]       = {4, 4, 4, 4, 4, 0, 4};
+    static const uint8_t question[7]   = {14, 17, 1, 2, 4, 0, 4};
 
-    if (ch >= 'a' && ch <= 'z') ch -= 32;
-    if (ch >= 'A' && ch <= 'Z') return letters[ch - 'A'];
-    if (ch >= '0' && ch <= '9') return digits[ch - '0'];
+    static const uint8_t apostrophe[7] = {4, 4, 2, 0, 0, 0, 0};
+    static const uint8_t quote[7]      = {10, 10, 0, 0, 0, 0, 0};
+    static const uint8_t backtick[7]   = {8, 4, 0, 0, 0, 0, 0};
+
+    static const uint8_t plus[7]       = {0, 4, 4, 31, 4, 4, 0};
+    static const uint8_t equals[7]     = {0, 0, 31, 0, 31, 0, 0};
+    static const uint8_t asterisk[7]   = {0, 21, 14, 31, 14, 21, 0};
+    static const uint8_t slash[7]      = {1, 2, 2, 4, 8, 8, 16};
+    static const uint8_t backslash[7]  = {16, 8, 8, 4, 2, 2, 1};
+    static const uint8_t percent[7]    = {17, 18, 2, 4, 8, 9, 17};
+    static const uint8_t ampersand[7]  = {12, 18, 20, 8, 21, 18, 13};
+    static const uint8_t hash[7]       = {10, 10, 31, 10, 31, 10, 10};
+    static const uint8_t dollar[7]     = {4, 15, 20, 14, 5, 30, 4};
+    static const uint8_t at[7]         = {14, 17, 23, 21, 23, 16, 14};
+    static const uint8_t caret[7]      = {4, 10, 17, 0, 0, 0, 0};
+    static const uint8_t tilde[7]      = {0, 0, 9, 22, 0, 0, 0};
+
+    static const uint8_t lparen[7]     = {2, 4, 8, 8, 8, 4, 2};
+    static const uint8_t rparen[7]     = {8, 4, 2, 2, 2, 4, 8};
+    static const uint8_t lbracket[7]   = {14, 8, 8, 8, 8, 8, 14};
+    static const uint8_t rbracket[7]   = {14, 2, 2, 2, 2, 2, 14};
+    static const uint8_t lbrace[7]     = {3, 4, 4, 8, 4, 4, 3};
+    static const uint8_t rbrace[7]     = {24, 4, 4, 2, 4, 4, 24};
+
+    static const uint8_t pipe[7]       = {4, 4, 4, 4, 4, 4, 4};
+    static const uint8_t less[7]       = {2, 4, 8, 16, 8, 4, 2};
+    static const uint8_t greater[7]    = {8, 4, 2, 1, 2, 4, 8};
+
+    if (ch >= 'a' && ch <= 'z') {
+        return lowercase[ch - 'a'];
+    }
+
+    if (ch >= 'A' && ch <= 'Z') {
+        return letters[ch - 'A'];
+    }
+
+    if (ch >= '0' && ch <= '9') {
+       return digits[ch - '0'];
+    }
 
     switch (ch) {
-        case '.': return dot;
-        case ':': return colon;
-        case '-': return dash;
-        case '!': return bang;
-        case '\'': return quote;
-        case ' ': return space;
-        default: return question;
+        case ' ':  return space;
+        case '.':  return dot;
+        case ',':  return comma;
+        case ':':  return colon;
+        case ';':  return semicolon;
+        case '-':  return dash;
+        case '_':  return underscore;
+        case '!':  return bang;
+        case '?':  return question;
+        case '\'': return apostrophe;
+        case '"':  return quote;
+        case '`':  return backtick;
+        case '+':  return plus;
+        case '=':  return equals;
+        case '*':  return asterisk;
+        case '/':  return slash;
+        case '\\': return backslash;
+        case '%':  return percent;
+        case '&':  return ampersand;
+        case '#':  return hash;
+        case '$':  return dollar;
+        case '@':  return at;
+        case '^':  return caret;
+        case '~':  return tilde;
+        case '(':  return lparen;
+        case ')':  return rparen;
+        case '[':  return lbracket;
+        case ']':  return rbracket;
+        case '{':  return lbrace;
+        case '}':  return rbrace;
+        case '|':  return pipe;
+        case '<':  return less;
+        case '>':  return greater;
+        default:   return question;
     }
 }
 
