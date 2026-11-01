@@ -4,6 +4,9 @@
 
 #include <stdbool.h>
 
+void keyboard_irq_handler(void);
+bool keyboard_enable_irq(void);
+
 typedef enum {
     KEYBOARD_EVENT_NONE,
     KEYBOARD_EVENT_CHAR,

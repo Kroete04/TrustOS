@@ -13,7 +13,7 @@ QEMUFLAGS := -m 2G
 # Per-architecture user controllable QEMU flags.
 
 ifeq ($(ARCH),x86_64)
-    QEMU_MACHINE := -M q35
+    QEMU_MACHINE := -M pc
     # Use legacy PS/2 keyboard and mouse.
     # No xHCI/USB devices required.
     QEMU_DEVICES :=

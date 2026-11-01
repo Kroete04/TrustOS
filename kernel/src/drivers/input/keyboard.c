@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define KEYBOARD_QUEUE_SIZE 64
+
 static inline uint8_t inb(uint16_t port) {
     uint8_t value;
 
@@ -14,6 +16,69 @@ static inline uint8_t inb(uint16_t port) {
     );
 
     return value;
+}
+
+static inline void outb(uint16_t port, uint8_t value) {
+    __asm__ volatile(
+        "outb %0, %1"
+        :
+        : "a"(value), "Nd"(port)
+    );
+}
+
+static bool keyboard_wait_input_ready(void) {
+    for (uint32_t i = 0; i < 100000; i++) {
+        if (!(inb(0x64) & 0x02)) {
+            return true;
+        }
+        __asm__ volatile("pause");
+    }
+    return false;
+}
+
+bool keyboard_enable_irq(void) {
+    // Read PS/2 controller configuration byte
+    if (!keyboard_wait_input_ready()) {
+        return false;
+    }
+    outb(0x64, 0x20);
+
+    // Wait for controller response
+    bool ready = false;
+    for (uint32_t i = 0; i < 100000; i++) {
+        if (inb(0x64) & 0x01) {
+            ready = true;
+            break;
+        }
+        __asm__ volatile("pause");
+    }
+    if (!ready) {
+        return false;
+    }
+
+    uint8_t config = inb(0x60);
+
+    // Enable keyboard IRQ1
+    config |= (1U << 0);
+
+    // Enable PS/2 controller translation:
+    // Scancode Set 2 -> Set 1
+    config |= (1U << 6);
+
+    // Enable first PS/2 port clock
+    config &= (uint8_t)~(1U << 4);
+
+    if (!keyboard_wait_input_ready()) {
+        return false;
+    }
+    outb(0x64, 0x60);
+
+    if (!keyboard_wait_input_ready()) {
+        return false;
+    }
+    outb(0x60, config);
+
+    return true;
 }
 
 static bool left_shift = false;
@@ -94,6 +159,29 @@ static bool is_letter(char character) {
     return character >= 'a' && character <= 'z';
 }
 
+static volatile uint8_t keyboard_queue[KEYBOARD_QUEUE_SIZE];
+static volatile uint32_t queue_head = 0;
+static volatile uint32_t queue_tail = 0;
+
+void keyboard_irq_handler(void) {
+    uint8_t status = inb(0x64);
+
+    if ((status & 0x01) && !(status & 0x20)) {
+        uint8_t scancode = inb(0x60);
+
+        uint32_t next =
+            (queue_head + 1) % KEYBOARD_QUEUE_SIZE;
+
+        if (next != queue_tail) {
+            keyboard_queue[queue_head] = scancode;
+            queue_head = next;
+        }
+    }
+
+    // End of interrupt to the master PIC.
+    outb(0x20, 0x20);
+}
+
 bool keyboard_poll_event(keyboard_event_t *event) {
     if (event == 0) {
         return false;
@@ -102,17 +190,23 @@ bool keyboard_poll_event(keyboard_event_t *event) {
     event->type = KEYBOARD_EVENT_NONE;
     event->character = '\0';
 
-    uint8_t status = inb(0x64);
 
-    if (!(status & 0x01)) {
+    uint32_t head;
+    uint32_t tail;
+
+    // Keep IRQ1 from modifying the queue during dequeue.
+    __asm__ volatile("pushfq; cli" ::: "memory");
+    tail = queue_tail;
+    head = queue_head;
+
+    if (tail == head) {
+        __asm__ volatile("popfq" ::: "memory");
         return false;
     }
 
-    uint8_t scancode = inb(0x60);
-
-    if (status & 0x20) {
-        return false;
-    }
+    uint8_t scancode = keyboard_queue[tail];
+    queue_tail = (tail + 1) % KEYBOARD_QUEUE_SIZE;
+    __asm__ volatile("popfq" ::: "memory");
 
     if (scancode == 0xE0) {
         extended = true;

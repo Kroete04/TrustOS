@@ -572,94 +572,88 @@ void kmain(void) {
 
     
     // --------------------------------------------------------
-    // 15. Keyboard Test - German Layout (v0.8.1)
+    // 15. IRQ-driven German keyboard (v0.8.2)
     // --------------------------------------------------------
 
     char input_buffer[256] = {0};
     size_t input_length = 0;
 
+    if (!keyboard_enable_irq()) {
+        graphics_print("\n[ERROR] PS/2 IRQ SETUP FAILED\n", 255, 60, 60);
+        hcf();
+    }
+
+    // The firmware leaves the local APIC LINT0 (ExtINT) masked.
+    // Map its MMIO page temporarily to enable legacy PIC delivery.
+    uint64_t apic_msr = interrupts_get_apic_base();
+    uint64_t apic_physical = apic_msr & 0x000FFFFFFFFFF000ULL;
+    uint64_t apic_virtual = vmm_get_test_address() + 0x200000ULL;
+
+    if ((apic_msr & (1ULL << 11)) == 0 ||
+        (apic_msr & (1ULL << 10)) != 0) {
+        graphics_print("[ERROR] UNSUPPORTED LOCAL APIC MODE\n", 255, 60, 60);
+        hcf();
+    }
+
+    if (!vmm_map_page(apic_virtual, apic_physical, VMM_WRITABLE | VMM_NX)) {
+        graphics_print("[ERROR] APIC MMIO MAPPING FAILED\n", 255, 60, 60);
+        hcf();
+    }
+
+    if (!interrupts_unmask_apic_lint0(apic_virtual)) {
+        graphics_print("[ERROR] APIC LINT0 SETUP FAILED\n", 255, 60, 60);
+        hcf();
+    }
+
+    if (!vmm_unmap_page(apic_virtual)) {
+        graphics_print("[ERROR] APIC MMIO UNMAP FAILED\n", 255, 60, 60);
+        hcf();
+    }
+
+    interrupts_enable();
+
     graphics_clear(10, 15, 25);
-
-    graphics_print("TRUSTOS V0.8.1 - KEYBOARD\n\n",
-                   0, 255, 130);
-
-    graphics_print("[OK] GERMAN KEYBOARD READY\n",
-                   0, 255, 130);
-
-    graphics_print("[OK] SHIFT / CAPS LOCK READY\n",
-                   0, 255, 130);
-
-    graphics_print("[OK] BACKSPACE READY\n",
-                   0, 255, 130);
-
-    graphics_print("\nTYPE SOMETHING:\n\n",
-                   255, 255, 255);
+    graphics_print("TRUSTOS V0.8.2 - KEYBOARD\n\n", 0, 255, 130);
+    graphics_print("[OK] GERMAN KEYBOARD READY\n", 0, 255, 130);
+    graphics_print("[OK] SHIFT / CAPS LOCK READY\n", 0, 255, 130);
+    graphics_print("[OK] BACKSPACE READY\n", 0, 255, 130);
+    graphics_print("[OK] PS/2 IRQ1 READY\n", 0, 255, 130);
+    graphics_print("\nTYPE SOMETHING:\n\n", 255, 255, 255);
 
     while (true) {
         keyboard_event_t event;
-
-        if (keyboard_poll_event(&event)) {
-            bool redraw = false;
-
-            if (event.type == KEYBOARD_EVENT_CHAR) {
-                if (input_length < sizeof(input_buffer) - 1) {
-                    input_buffer[input_length++] =
-                        event.character;
-
-                    input_buffer[input_length] = '\0';
-                    redraw = true;
-                }
-            } else if (
-                event.type == KEYBOARD_EVENT_BACKSPACE
-            ) {
-                if (input_length > 0) {
-                    input_length--;
-                    input_buffer[input_length] = '\0';
-                    redraw = true;
-                }
-            } else if (
-                event.type == KEYBOARD_EVENT_ENTER
-            ) {
-                input_length = 0;
-                input_buffer[0] = '\0';
-                redraw = true;
-            }
-
-            if (redraw) {
-                graphics_clear(10, 15, 25);
-
-                graphics_print(
-                    "TRUSTOS V0.8.1 - KEYBOARD\n\n",
-                    0, 255, 130
-                );
-
-                graphics_print(
-                    "[OK] GERMAN KEYBOARD READY\n",
-                    0, 255, 130
-                );
-
-                graphics_print(
-                    "[OK] SHIFT / CAPS LOCK READY\n",
-                    0, 255, 130
-                );
-
-                graphics_print(
-                    "[OK] BACKSPACE READY\n",
-                    0, 255, 130
-                );
-
-                graphics_print(
-                    "\nTYPE SOMETHING:\n\n",
-                    255, 255, 255
-                );
-
-                graphics_print(
-                    input_buffer,
-                    0, 255, 130
-                );
-            }
+        if (!keyboard_poll_event(&event)) {
+            __asm__ volatile("pause");
+            continue;
         }
 
-        __asm__ volatile("pause");
+        bool redraw = false;
+        if (event.type == KEYBOARD_EVENT_CHAR) {
+            if (input_length < sizeof(input_buffer) - 1) {
+                input_buffer[input_length++] = event.character;
+                input_buffer[input_length] = '\0';
+                redraw = true;
+            }
+        } else if (event.type == KEYBOARD_EVENT_BACKSPACE) {
+            if (input_length > 0) {
+                input_buffer[--input_length] = '\0';
+                redraw = true;
+            }
+        } else if (event.type == KEYBOARD_EVENT_ENTER) {
+            input_length = 0;
+            input_buffer[0] = '\0';
+            redraw = true;
+        }
+
+        if (redraw) {
+            graphics_clear(10, 15, 25);
+            graphics_print("TRUSTOS V0.8.2 - KEYBOARD\n\n", 0, 255, 130);
+            graphics_print("[OK] GERMAN KEYBOARD READY\n", 0, 255, 130);
+            graphics_print("[OK] SHIFT / CAPS LOCK READY\n", 0, 255, 130);
+            graphics_print("[OK] BACKSPACE READY\n", 0, 255, 130);
+            graphics_print("[OK] PS/2 IRQ1 READY\n", 0, 255, 130);
+            graphics_print("\nTYPE SOMETHING:\n\n", 255, 255, 255);
+            graphics_print(input_buffer, 0, 255, 130);
+        }
     }
 }

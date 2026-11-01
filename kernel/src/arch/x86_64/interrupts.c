@@ -27,6 +27,77 @@ static struct idt_entry idt[256];
 
 extern void (*isr_stub_table[32])(void);
 
+extern void irq1_stub(void);
+
+static inline void outb(uint16_t port, uint8_t value) {
+    __asm__ volatile(
+        "outb %0, %1"
+        :
+        : "a"(value), "Nd"(port)
+    );
+}
+
+static inline uint8_t inb(uint16_t port) {
+    uint8_t value;
+
+    __asm__ volatile(
+        "inb %1, %0"
+        : "=a"(value)
+        : "Nd"(port)
+    );
+
+    return value;
+}
+
+static inline void io_wait(void) {
+    outb(0x80, 0);
+}
+
+static void pic_init(void) {
+    // Mask all IRQs during configuration
+    outb(0x21, 0xFF);
+    outb(0xA1, 0xFF);
+
+    // Start initialization sequence
+    outb(0x20, 0x11);
+    io_wait();
+    outb(0xA0, 0x11);
+    io_wait();
+
+    // Master PIC: vectors 32-39
+    outb(0x21, 0x20);
+    io_wait();
+
+    // Slave PIC: vectors 40-47
+    outb(0xA1, 0x28);
+    io_wait();
+
+    // Cascade wiring
+    outb(0x21, 0x04);
+    io_wait();
+    outb(0xA1, 0x02);
+    io_wait();
+
+    // 8086 mode
+    outb(0x21, 0x01);
+    io_wait();
+    outb(0xA1, 0x01);
+    io_wait();
+
+    // Only unmask IRQ1 (keyboard)
+    outb(0x21, 0xFD);
+    outb(0xA1, 0xFF);
+
+}
+
+void interrupts_enable(void) {
+    __asm__ volatile("sti" ::: "memory");
+}
+
+void interrupts_disable(void) {
+    __asm__ volatile("cli" ::: "memory");
+}
+
 static uint16_t read_cs(void) {
     uint16_t cs;
     __asm__ volatile("mov %%cs, %0" : "=r"(cs));
@@ -59,12 +130,18 @@ void interrupts_init(void) {
         idt_set_gate((uint8_t)i, isr_stub_table[i]);
     }
 
+    // PS/2 Keyboard: IRQ1 -> Vector 33
+    idt_set_gate(33, irq1_stub);
+
     struct idt_pointer pointer = {
         .limit = sizeof(idt) - 1,
         .base = (uint64_t)idt
     };
 
     __asm__ volatile("lidt %0" : : "m"(pointer) : "memory");
+
+    pic_init();
+
 }
 
 static const char *exception_name(uint64_t vector) {
@@ -152,4 +229,24 @@ void exception_handler(const struct interrupt_frame *frame) {
     for (;;) {
         __asm__ volatile("cli; hlt" ::: "memory");
     }
+
+}
+
+uint64_t interrupts_get_apic_base(void) {
+    uint32_t low;
+    uint32_t high;
+
+    __asm__ volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(0x1B));
+    return ((uint64_t)high << 32) | low;
+}
+
+bool interrupts_unmask_apic_lint0(uint64_t virtual_apic_base) {
+    volatile uint32_t *lint0 =
+        (volatile uint32_t *)(uintptr_t)(virtual_apic_base + 0x350);
+
+    uint32_t value = *lint0;
+
+    // Preserve the firmware-provided delivery mode; clear only the mask bit.
+    *lint0 = value & ~(1U << 16);
+    return ((*lint0 & (1U << 16)) == 0);
 }

@@ -62,6 +62,63 @@ isr_common:
     hlt
     jmp .hang
 
+
+; ============================================================
+; PS/2 Keyboard IRQ1 - Interrupt Vector 33
+; ============================================================
+
+extern keyboard_irq_handler
+
+global irq1_stub
+irq1_stub:
+    cld
+
+    ; Save general-purpose registers
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    ; Align stack for C function call
+    mov r12, rsp
+    and rsp, -16
+
+    call keyboard_irq_handler
+
+    ; Restore original stack
+    mov rsp, r12
+
+    ; Restore registers
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+
+    ; Return from hardware interrupt
+    iretq
+
 ; table for all Exception-Stubs for C.
 section .rodata
 
